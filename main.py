@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -50,13 +50,13 @@ def process_new_notes(file):
         f.write(file.getbuffer())
     loader = PyPDFLoader("temp.pdf")
     chunks = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100).split_documents(loader.load())
-    # Pass the chunks and the embeddings clearly
+    
+    # Use 'embeddings' (your variable name) with the 'embedding' parameter
     vectorstore = Chroma.from_documents(
-        documents=chunks, 
-        embedding=embeddings
+        documents=chunks,
+        embedding=embeddings  # If this fails, try 'embedding_function=embeddings'
     )
     return vectorstore
-
 if uploaded_file and "vector_db" not in st.session_state:
     with st.spinner("Processing your notes..."):
         st.session_state.vector_db = process_new_notes(uploaded_file)
