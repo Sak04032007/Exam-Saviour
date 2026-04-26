@@ -130,16 +130,16 @@ def master_engine_logic(user_input, history, subject):
         
         # Initial Generation
         # Force the AI to be a "Grounded" assistant
-qa_prompt = ChatPromptTemplate.from_messages([
-    ("system", f"{persona}\n\n"
-               "GROUNDING RULES:\n"
-               "1. Use ONLY the provided Context to answer.\n"
-               "2. If the user's question isn't in the Context, say 'This specific detail is not in your notes.'\n"
-               "3. Do not use outside textbook knowledge.\n\n"
-               "Context: {context}"),
-    MessagesPlaceholder(variable_name="history"),
-    ("human", "{question}")
-])
+        qa_prompt = ChatPromptTemplate.from_messages([
+            ("system", f"{persona}\n\n"
+                       "GROUNDING RULES:\n"
+                       "1. Use ONLY the provided Context to answer.\n"
+                       "2. If the user's question isn't in the Context, say 'This specific detail is not in your notes.'\n"
+                       "3. Do not use outside textbook knowledge.\n\n"
+                       "Context: {context}"),
+            MessagesPlaceholder(variable_name="history"),
+            ("human", "{question}")
+        ])
         initial_answer = (qa_prompt | llm | StrOutputParser()).invoke({"question": user_input, "history": history})
         
         # Your Hallucination Check
