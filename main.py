@@ -129,11 +129,13 @@ def master_engine_logic(user_input, history, subject):
         context = "\n".join([d.page_content for d in docs])
         
         # Initial Generation
-        qa_prompt = ChatPromptTemplate.from_messages([
-            ("system", f"{persona}\n\nContext: {context}"),
-            MessagesPlaceholder(variable_name="history"),
-            ("human", "{question}")
-        ])
+        qa_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", f"{persona}\n\nContext: {context}"),
+                MessagesPlaceholder(variable_name="history"),
+                ("human", "{question}")
+            ]
+        )
         initial_answer = (qa_prompt | llm | StrOutputParser()).invoke({"question": user_input, "history": history})
         
         # Your Hallucination Check
