@@ -132,11 +132,10 @@ def master_engine_logic(user_input, history, subject):
         # Force the AI to be a "Grounded" assistant
         qa_prompt = ChatPromptTemplate.from_messages([
             ("system", f"{persona}\n\n"
-                       "CORE DIRECTIVES:\n"
-                       "- You are an expert assistant for a student at Central University of Jammu.\n"
-                       "- Use ONLY the provided Context to answer. Do not use outside knowledge.\n"
-                       "- If the Context is insufficient, say 'The notes do not provide enough detail on this.'\n"
-                       "- Provide technical details like formulas and algorithms exactly as shown in the notes.\n\n"
+                       "CRITICAL INSTRUCTIONS:\n"
+                       "1. Use ONLY the provided Context block to answer.\n"
+                       "2. If the answer is not in the context, say: 'I cannot find that in your notes.'\n"
+                       "3. Prioritize technical details like formulas (e.g., Euclidean distance) and algorithms.\n\n"
                        "Context: {context}"),
             MessagesPlaceholder(variable_name="history"),
             ("human", "{question}")
