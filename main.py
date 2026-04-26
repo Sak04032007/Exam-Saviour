@@ -92,6 +92,7 @@ def process_new_notes(file):
         collection_name="user_notes"
     )
     return vectorstore
+
 if uploaded_file and "vector_db" not in st.session_state:
     with st.spinner("Processing your notes..."):
         st.session_state.vector_db = process_new_notes(uploaded_file)
@@ -154,7 +155,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for m in st.session_state.messages:
-    with st.chat_message(m["role"]): st.markdown(m["content"])
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
 
 if prompt := st.chat_input("Ask your Professor..."):
     if not uploaded_file:
@@ -171,6 +173,7 @@ if prompt := st.chat_input("Ask your Professor..."):
             st.markdown(ans)
             if sources:
                 with st.expander("📚 Sources"):
-                    for s in list(set(sources)): st.write(s)
+                    for s in list(set(sources)):
+                        st.write(s)
 
         st.session_state.messages.append({"role": "assistant", "content": ans})
