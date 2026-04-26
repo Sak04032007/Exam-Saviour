@@ -46,15 +46,21 @@ with st.sidebar:
 
 # --- 5. DYNAMIC PDF PROCESSING ---
 def process_new_notes(file):
+    # Save the file temporarily
     with open("temp.pdf", "wb") as f:
         f.write(file.getbuffer())
-    loader = PyPDFLoader("temp.pdf")
-    chunks = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100).split_documents(loader.load())
     
-    # Use 'embeddings' (your variable name) with the 'embedding' parameter
+    # Load and split the PDF
+    loader = PyPDFLoader("temp.pdf")
+    pages = loader.load()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    chunks = text_splitter.split_documents(pages)
+    
+    # CRITICAL FIX: Explicitly pass the embedding_function
     vectorstore = Chroma.from_documents(
         documents=chunks,
-        embedding=embeddings  # If this fails, try 'embedding_function=embeddings'
+        embedding=embeddings,  # Try 'embedding_function=embeddings' if this still errors
+        collection_name="user_notes"
     )
     return vectorstore
 if uploaded_file and "vector_db" not in st.session_state:
