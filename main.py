@@ -87,7 +87,16 @@ def master_engine_logic(user_input, history, subject):
     route = route_chain.invoke({"question": user_input}).lower()
     
     if "vector_db" in route and "vector_db" in st.session_state:
-        docs = st.session_state.vector_db.similarity_search(user_input, k=3)
+        # --- START OF CATCH-ALL LOGIC ---
+        # If the user is asking for a test/viva, we override the search query
+        search_query = user_input
+        trigger_words = ["question", "viva", "test", "quiz", "ask me"]
+        
+        if any(word in user_input.lower() for word in trigger_words):
+            search_query = "important technical concepts, definitions, and core topics"
+        # --- END OF CATCH-ALL LOGIC ---
+        
+        docs = st.session_state.vector_db.similarity_search(search_query, k=5)
         context = "\n".join([d.page_content for d in docs])
         
         # Initial Generation
