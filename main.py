@@ -51,11 +51,11 @@ def process_new_notes(file):
     loader = PyPDFLoader("temp.pdf")
     chunks = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100).split_documents(loader.load())
     # Pass the chunks and the embeddings clearly
-vectorstore = Chroma.from_documents(
-    documents=chunks, 
-    embedding=embeddings
-)
-return vectorstore
+    vectorstore = Chroma.from_documents(
+        documents=chunks, 
+        embedding=embeddings
+    )
+    return vectorstore
 
 if uploaded_file and "vector_db" not in st.session_state:
     with st.spinner("Processing your notes..."):
