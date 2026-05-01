@@ -140,7 +140,7 @@ if "YES" in grade.upper():
                 ("human", "{question}")
             ])
             ans = (qa_prompt | llm | StrOutputParser()).invoke({"question": user_input, "history": history})
-   return f"📚 **From your Notes:**\n\n{ans}", [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
+            return f"📚 **From your Notes:**\n\n{ans}", [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
         
 else:
             # 2. Fallback: Data not in notes, fetch from Internet/LLM
@@ -154,7 +154,7 @@ else:
             Question: {user_input}
             """
             web_ans = llm.invoke(fallback_prompt).content
-   return f"🌐 **From Internet/LLM:**\n\n{web_ans}", ["🌍 Web Source"]
+            return f"🌐 **From Internet/LLM:**\n\n{web_ans}", ["🌍 Web Source"]
 
     # General Greeting Fallback
 return llm.invoke(f"System: {persona}\nUser: {user_input}").content, []
