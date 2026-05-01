@@ -132,7 +132,6 @@ candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
         # 3. SELF-GRADING: Check for hallucinations
 # Check if the context actually contains the answer
         grade = grader_chain.invoke({"context": context, "answer": user_input})
-        
         if "YES" in grade.upper():
             # Answer strictly from notes
             qa_prompt = ChatPromptTemplate.from_messages([
