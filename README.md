@@ -27,3 +27,13 @@
 4. **Chat** with the Professor to master your subjects.
 
 [View detailed Technical Stack documentation](./TECH_STACK.md)
+
+---
+## 👤 Author
+**Saksham**
+*   **University:** Central University of Jammu (CUJ)
+*   **Major:** Computer Science Engineering
+*   **Focus:** Machine Learning & Data Science
+
+---
+*If you find this project helpful, feel free to ⭐ the repository!*
