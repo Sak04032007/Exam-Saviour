@@ -94,8 +94,9 @@ grader_prompt = ChatPromptTemplate.from_template(
     Question: {answer}
     
     Determine if the Context contains information related to the Question. 
-    - If the Context discusses the general topics or techniques mentioned in the question -> Reply 'YES'.
-    - Only reply 'NO' if the Context is completely irrelevant to the topic.
+    1. If the user is saying something conversational (e.g., "I don't know", "Hi", "Next", "Yes", "No"), reply 'YES'.
+    2. If the Context discusses the general topics or techniques mentioned in the question -> Reply 'YES'.
+    3. Only reply 'NO' if the user is asking a specific factual question that is definitely NOT in the Context.
     
     Reply with ONLY 'YES' or 'NO'."""
 )
@@ -170,19 +171,24 @@ for m in st.session_state.messages:
         st.markdown(m["content"])
 
 if prompt := st.chat_input("Ask your Professor..."):
-    if not uploaded_file:
-        st.warning("Upload a PDF first!")
+    # [COMPONENT: CONDITIONAL ACCESS]
+    # Allow "General Study" to work without a PDF, but block technical modes
+    needs_pdf = selected_subject not in ["General Study"]
+    
+    if needs_pdf and not uploaded_file:
+        st.warning(f"Please upload a PDF to use {selected_subject} mode!")
     else:
         st.chat_message("user").markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         with st.chat_message("assistant"):
-            # Format chat history for LangChain
+            # Format chat history
             hist = [HumanMessage(content=m["content"]) if m["role"]=="user" else AIMessage(content=m["content"]) for m in st.session_state.messages[:-1]]
             
-            # Execute master logic and display answer
+            # [COMPONENT: ENGINE EXECUTION]
             ans, sources = master_engine_logic(prompt, hist, selected_subject)
             st.markdown(ans)
+            
             if sources:
                 with st.expander("Sources"):
                     for s in list(set(sources)):
