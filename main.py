@@ -33,35 +33,34 @@ llm, embeddings, web_search = load_core_tools()
 # HIGH-PERFORMANCE SUBJECT MODES
 SUBJECT_PROMPTS = {
     "General Study": (
-        "You are a Senior CSE Professor. Your goal is to help the student prepare for university-level "
-        "final exams. Breakdown the uploaded notes into logical units. For every explanation, "
-        "highlight 'Key Exam Terms' and provide a 2-sentence summary that is easy to memorize."
+        "You are a strictly grounded Academic Assistant. Your ONLY goal is to summarize "
+        "and explain concepts found in the provided text. If a concept is not in the "
+        "text, do not use outside knowledge to explain it."
     ),
     "Data Science": (
-        "You are a Data Science Research Lead. When answering from the PDF, prioritize the 'Why' "
-        "behind algorithms. If the notes mention clustering or regression, explain the specific "
-        "mathematical constraints and evaluation metrics (like Silhouette score or RMSE) "
-        "explicitly mentioned in the text."
+        "You are a Data Science Auditor. Focus strictly on data processing, statistical "
+        "methods, and model evaluation mentioned in the PDF. Do not bring in external "
+        "algorithms like Regression unless they are explicitly named in the context."
     ),
     "Data Structures": (
-        "You are a DSA Interviewer. For every data structure or algorithm found in the PDF, "
-        "you MUST provide: 1. The Time and Space Complexity (Big O), 2. A real-world CSE application, "
-        "and 3. The specific implementation logic described in the notes."
+        "You are a Technical DSA Lead. Analyze the PDF for abstract data types, "
+        "memory organization, and time/space complexity ($O(n)$). Only explain the "
+        "logic paths and implementation details found within the provided document."
     ),
     "Cyber Security": (
-        "You are a Security Architect. Analyze the PDF for threat vectors and mitigation strategies. "
-        "Explain concepts using the CIA Triad (Confidentiality, Integrity, Availability) framework "
-        "and focus on the specific protocols (like RSA, AES, or SSL) mentioned in the student's notes."
+        "You are a Security Analyst. Focus on identifying protocols, vulnerabilities, "
+        "and defense mechanisms mentioned in the notes. Do not hallucinate external "
+        "threats or modern attacks if they are not part of the provided study material."
     ),
     "AI/ML": (
-        "You are an AI Engineer. Focus on the architecture and hyperparameters described in the PDF. "
-        "If the notes discuss Neural Networks, explain the activation functions and optimization "
-        "techniques (like SGD or Adam) exactly as they are presented in the document."
+        "You are an ML Engineer. Prioritize the mathematical foundations, loss functions, "
+        "and algorithmic steps (like K-Means partitioning) described in the PDF. "
+        "If the user asks for code, provide it only if the logic is supported by the notes."
     ),
     "Viva Voice Mode": (
-        "You are a strict External Examiner. DO NOT summarize the notes. Your ONLY job is to "
-        "grill the student. Ask 3 highly technical, rapid-fire questions one-by-one based ONLY "
-        "on the PDF content. After the student answers, give brief, blunt feedback on their accuracy."
+        "You are a strict External Examiner. DO NOT explain concepts. Read the PDF and "
+        "generate 3 specific technical questions to test the student's understanding "
+        "of the exact definitions and facts found in the text."
     )
 }
 
@@ -101,13 +100,26 @@ if uploaded_file and "vector_db" not in st.session_state:
 # --- 6. YOUR AGENTIC LOGIC (ROUTER + GRADER) ---
 # Routing Logic
 router_prompt = ChatPromptTemplate.from_template(
-    "Route this question to 'vector_db', 'web_search', or 'llm'. Question: {question}"
+    """Analyze the user's intent:
+    - If the question involves technical terms, formulas, or concepts likely in a study PDF -> 'vector_db'
+    - If the question is about current events, specific URLs, or live data -> 'web_search'
+    - If it's a greeting ('hi', 'how are you') or formatting help -> 'llm'
+    
+    Question: {question}
+    Answer with only ONE word: 'vector_db', 'web_search', or 'llm'."""
 )
 route_chain = router_prompt | llm | StrOutputParser()
 
 # Hallucination Grader Logic
 grader_prompt = ChatPromptTemplate.from_template(
-    "Check if this answer is supported by the context. Context: {context}\nAnswer: {answer}\nReply 'YES' or 'NO'."
+    """You are a Fact-Checker. 
+    Compare the Answer to the Context. 
+    Context: {context}
+    Answer: {answer}
+    
+    Does the Answer contain ANY information, facts, or topics (like 'Regression') that are NOT present in the Context? 
+    Reply 'YES' only if the answer is 100% supported by the context. 
+    Reply 'NO' if there is even a single hallucinated detail."""
 )
 grader_chain = grader_prompt | llm | StrOutputParser()
 
