@@ -129,12 +129,6 @@ candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
     "persona": persona,
     "context_text": context  # Pass it here instead of hardcoding in f-string
 })
-        
-            candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
-            "question": user_input, 
-            "history": history
-        })
-
         # 3. SELF-GRADING: Check for hallucinations
 # Check if the context actually contains the answer
         grade = grader_chain.invoke({"context": context, "answer": user_input})
