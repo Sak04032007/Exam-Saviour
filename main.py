@@ -31,41 +31,15 @@ llm, embeddings, web_search = load_core_tools()
 
 # --- 3. THE PROMPT LIBRARY (Your Personas) ---
 # HIGH-PERFORMANCE SUBJECT MODES
-SUBJECT_PROMPTS = {
-    "General Study": (
-        "You are a strictly grounded Academic Assistant. Your ONLY goal is to summarize "
-        "and explain concepts found in the provided text. If a concept is not in the "
-        "text, do not use outside knowledge to explain it."
-    ),
-    "Data Science": (
-        "You are a Data Science Auditor. Focus strictly on data processing, statistical "
-        "methods, and model evaluation mentioned in the PDF. Do not bring in external "
-        "algorithms like Regression unless they are explicitly named in the context."
-    ),
-    "Data Structures": (
-        "You are a Technical DSA Lead. Analyze the PDF for abstract data types, "
-        "memory organization, and time/space complexity ($O(n)$). Only explain the "
-        "logic paths and implementation details found within the provided document."
-    ),
-    "Cyber Security": (
-        "You are a Security Analyst. Focus on identifying protocols, vulnerabilities, "
-        "and defense mechanisms mentioned in the notes. Do not hallucinate external "
-        "threats or modern attacks if they are not part of the provided study material."
-    ),
-    "AI/ML": (
-        "You are an ML Engineer. Prioritize the mathematical foundations, loss functions, "
-        "and algorithmic steps (like K-Means partitioning) described in the PDF. "
-        "If the user asks for code, provide it only if the logic is supported by the notes."
-    ),
-    "Viva Voice Mode": (
-    "You are a strict External Examiner for a CSE Viva. "
-    "FACTUAL BOUNDARY: Use ONLY the provided Context to generate questions. "
-    "If the Context is about Clustering, DO NOT ask about Regression. "
-    "TASK: Generate 3 short, technical questions based on specific definitions, "
-    "formulas, or steps found in the notes. Ask them one-by-one to simulate a real viva."
 
-    )
+SUBJECT_PROMPTS = {
+    "General Study": "You are an assistant. Use only the provided notes to answer.",
+    "Data Science": "You are an assistant. Focus only on the technical definitions in the notes. If a detail is missing, say it's not provided.",
+    "AI/ML": "You are an assistant. Use only the formulas and algorithms from the notes.",
+    "Cyber Security": "You are an assistant. Use only the security protocols mentioned in the notes.",
+    "Viva Voice Mode": "You are an examiner. Generate questions based strictly on the text provided."
 }
+
 
 # --- 4. SIDEBAR CONTROLS ---
 with st.sidebar:
@@ -144,7 +118,8 @@ def master_engine_logic(user_input, history, subject):
 
         # Generate a candidate answer
         qa_prompt = ChatPromptTemplate.from_messages([
-            ("system", f"{persona}\n\nSTRICT: Answer ONLY using this context: {context}"),
+            ("system", f"{persona}\n\nSTRICT: Answer ONLY using this context: {context}
+             DO NOT use introductory phrases like 'Based on the context of...' or 'According to the notes...' Start your answer directly with the facts. If the information is not in the context, simply state: 'This specific detail is not in your notes.'"),
             MessagesPlaceholder(variable_name="history"),
             ("human", "{question}")
         ])
