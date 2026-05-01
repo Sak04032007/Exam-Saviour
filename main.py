@@ -36,7 +36,7 @@ SUBJECT_PROMPTS = {
     "AI/ML": "You are an AI/ML Specialist. Focus on explaining the mathematical formulas, model architectures, and logic found in the notes. Provide step-by-step breakdowns of the algorithms mentioned.",
     "Cyber Security": "You are a Security Expert. Explain the protocols, threats, and defensive strategies mentioned in the notes. Focus on the technical implementation details found in the context.",
     "Data Structures": "You are a Computer Science Professor. Focus on explaining data structures (Linked Lists, Stacks, Queues, Trees) and algorithms (BFS, DFS) found in the notes. Provide C/Python logic explanations and analyze Time/Space complexity based on the text.",
-    "Viva Voice Mode": "You are an Interviewer. Based strictly on the notes, generate possible viva questions and provide the correct answers based only on the provided text."
+    "Viva Voice Mode": "You are a strict External Examiner. Your ONLY task is to generate questions based on the definitions, facts, and data points explicitly written in the provided notes. DO NOT invent your own examples, numbers, or lists. If the notes don't have enough detail for a question, ask about a different section of the notes."
 }
 
 # --- 4. SIDEBAR CONTROLS ---
@@ -103,7 +103,28 @@ def master_engine_logic(user_input, history, subject):
         route = "vector_db"
     else:
         route = route_chain.invoke({"question": user_input}).lower()
+        
+    if subject == "Viva Voice Mode":
+    # Force the examiner to stay grounded
+    qa_prompt = ChatPromptTemplate.from_messages([
+        ("system", "{persona}\n\nSTRICT RULE: You must base your questions ONLY on this context. Do not invent examples or data.\n\nContext: {context_text}"),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{question}")
+    ])
+    # [COMPONENT: GROUNDED QA PROMPT]
+qa_prompt = ChatPromptTemplate.from_messages([
+    ("system", """{persona}
     
+    STRICT GROUNDING RULES:
+    1. Answer ONLY using the provided Context. 
+    2. If the user asks for something specific (like code, formulas, or lists) that is NOT in the Context, you MUST say: "The notes discuss this topic, but they do not provide the specific implementation or data."
+    3. Never use outside knowledge to fill in gaps in the notes.
+    4. Keep the tone professional and academic.
+
+    Context: {context_text}"""),
+    MessagesPlaceholder(variable_name="history"),
+    ("human", "{question}")
+])
     # [COMPONENT: VECTOR DB RETRIEVAL]
     if "vector_db" in st.session_state and "vector_db" in route:
         docs = st.session_state.vector_db.similarity_search(user_input, k=7)
