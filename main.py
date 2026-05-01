@@ -58,15 +58,18 @@ SUBJECT_PROMPTS = {
         "If the user asks for code, provide it only if the logic is supported by the notes."
     ),
     "Viva Voice Mode": (
-        "You are a strict External Examiner. DO NOT explain concepts. Read the PDF and "
-        "generate 3 specific technical questions to test the student's understanding "
-        "of the exact definitions and facts found in the text."
+    "You are a strict External Examiner for a CSE Viva. "
+    "FACTUAL BOUNDARY: Use ONLY the provided Context to generate questions. "
+    "If the Context is about Clustering, DO NOT ask about Regression. "
+    "TASK: Generate 3 short, technical questions based on specific definitions, "
+    "formulas, or steps found in the notes. Ask them one-by-one to simulate a real viva."
+
     )
 }
 
 # --- 4. SIDEBAR CONTROLS ---
 with st.sidebar:
-    st.title("🎓 Study Settings")
+    st.title("🤓 Study Settings")
     selected_subject = st.selectbox("Choose Professor Mode:", list(SUBJECT_PROMPTS.keys()))
     uploaded_file = st.file_uploader("Upload your CSE Notes (PDF)", type="pdf")
     if st.button("Clear Chat History"):
@@ -128,13 +131,16 @@ def master_engine_logic(user_input, history, subject):
     
     # 1. ROUTING: Determine the best tool
     route = route_chain.invoke({"question": user_input}).lower()
-    
+    if subject == "Viva Voice Mode":
+        route = "vector_db"
+    else:
+        route = route_chain.invoke({"question": user_input}).lower()
     # 2. RETRIEVAL & GRADING (The CRAG Layer)
     if "vector_db" in route and "vector_db" in st.session_state:
         # Deep search (k=7) to ensure we find technical details
         docs = st.session_state.vector_db.similarity_search(user_input, k=7)
         context = "\n".join([d.page_content for d in docs])
-        sources = [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
+        sources = [f" Page {d.metadata.get('page', 0)+1}" for d in docs]
 
         # Generate a candidate answer
         qa_prompt = ChatPromptTemplate.from_messages([
@@ -193,7 +199,7 @@ if prompt := st.chat_input("Ask your Professor..."):
             ans, sources = master_engine_logic(prompt, hist, selected_subject)
             st.markdown(ans)
             if sources:
-                with st.expander("📚 Sources"):
+                with st.expander("Sources"):
                     for s in list(set(sources)):
                         st.write(s)
 
