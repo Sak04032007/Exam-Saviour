@@ -130,7 +130,7 @@ candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
     "context_text": context  # Pass it here instead of hardcoding in f-string
 })
         
-        candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
+            candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
             "question": user_input, 
             "history": history
         })
