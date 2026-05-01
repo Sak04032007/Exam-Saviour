@@ -110,47 +110,60 @@ def master_engine_logic(user_input, history, subject):
     else:
         route = route_chain.invoke({"question": user_input}).lower()
     # 2. RETRIEVAL & GRADING (The CRAG Layer)
-    if "vector_db" in route and "vector_db" in st.session_state:
-        # Deep search (k=7) to ensure we find technical details
+
+    if "vector_db" in st.session_state:
         docs = st.session_state.vector_db.similarity_search(user_input, k=7)
         context = "\n".join([d.page_content for d in docs])
-        sources = [f" Page {d.metadata.get('page', 0)+1}" for d in docs]
-
         # Generate a candidate answer
-        qa_prompt = ChatPromptTemplate.from_messages([
-            ("system", f"{persona}\n\nSTRICT: Answer ONLY using this context: {context}
-             DO NOT use introductory phrases like 'Based on the context of...' or 'According to the notes...' Start your answer directly with the facts. If the information is not in the context, simply state: 'This specific detail is not in your notes.'"),
-            MessagesPlaceholder(variable_name="history"),
-            ("human", "{question}")
-        ])
+        # Change this in your master_engine_logic
+qa_prompt = ChatPromptTemplate.from_messages([
+    ("system", "{persona}\n\nSTRICT: Answer ONLY using this context: {context_text}"),
+    MessagesPlaceholder(variable_name="history"),
+    ("human", "{question}")
+])
+
+# Then invoke it like this:
+candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
+    "question": user_input, 
+    "history": history,
+    "persona": persona,
+    "context_text": context  # Pass it here instead of hardcoding in f-string
+})
+        
         candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
             "question": user_input, 
             "history": history
         })
 
         # 3. SELF-GRADING: Check for hallucinations
-        grade = grader_chain.invoke({"context": context, "answer": candidate_answer})
+# Check if the context actually contains the answer
+        grade = grader_chain.invoke({"context": context, "answer": user_input})
         
-        if "NO" in grade.upper():
-            # If hallucination detected, trigger "Strict Retrieval Mode"
-            refinement_prompt = f"""
-            The previous answer contained information not in the PDF. 
-            STRICT TASK: Extract ONLY facts related to '{user_input}' from this text.
-            If the facts are not here, say 'This specific detail is not in your notes.'
-            TEXT: {context}
+        if "YES" in grade.upper():
+            # Answer strictly from notes
+            qa_prompt = ChatPromptTemplate.from_messages([
+                ("system", f"{persona}\n\nUSE ONLY THIS CONTEXT: {context}"),
+                MessagesPlaceholder(variable_name="history"),
+                ("human", "{question}")
+            ])
+            ans = (qa_prompt | llm | StrOutputParser()).invoke({"question": user_input, "history": history})
+            return f"📚 **From your Notes:**\n\n{ans}", [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
+        
+        else:
+            # 2. Fallback: Data not in notes, fetch from Internet/LLM
+            st.info("🔍 This specific detail isn't in your notes. Fetching from the internet...")
+            results = web_search.invoke({"query": user_input})
+            
+            fallback_prompt = f"""
+            {persona}
+            The user's notes do not contain this info. Use the following web data to answer.
+            Web Data: {results}
+            Question: {user_input}
             """
-            final_answer = llm.invoke(refinement_prompt).content
-            return final_answer, sources
-        
-        return candidate_answer, sources
+            web_ans = llm.invoke(fallback_prompt).content
+            return f"🌐 **From Internet/LLM:**\n\n{web_ans}", ["🌍 Web Source"]
 
-    # 4. FALLBACK: Web Search
-    elif "web_search" in route:
-        results = web_search.invoke({"query": user_input})
-        web_ans = llm.invoke(f"System: {persona}\nWeb Data: {results}\nAnswer: {user_input}").content
-        return web_ans, ["🌐 Web Search"]
-    
-    # 5. GENERAL: LLM (Greetings/Chat)
+    # General Greeting Fallback
     return llm.invoke(f"System: {persona}\nUser: {user_input}").content, []
 # --- 7. THE UI CHAT ---
 if "messages" not in st.session_state:
