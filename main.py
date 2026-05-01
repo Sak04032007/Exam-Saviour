@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
 
 # --- 1. SETUP & SECRETS ---
+# Standard Streamlit and environment configuration
 st.set_page_config(page_title="Exam Savior AI", layout="wide")
 
 if "GROQ_API_KEY" in st.secrets:
@@ -20,6 +21,7 @@ if "TAVILY_API_KEY" in st.secrets:
     os.environ["TAVILY_API_KEY"] = st.secrets["TAVILY_API_KEY"]
 
 # --- 2. THE BRAINS (LLM & TOOLS) ---
+# Initialize the Llama model, Embeddings for PDF search, and Web Search tool
 @st.cache_resource
 def load_core_tools():
     llm = ChatGroq(model_name="llama-3.3-70b-versatile", temperature=0)
@@ -29,17 +31,19 @@ def load_core_tools():
 
 llm, embeddings, web_search = load_core_tools()
 
-# --- 3. THE PROMPT LIBRARY (Your Personas) ---
+# --- 3. THE PROMPT LIBRARY (Professor Personas) ---
+# Specific personas to guide the LLM's behavior based on the chosen subject
 SUBJECT_PROMPTS = {
-    "General Study": "You are a helpful Study Assistant. Your goal is to summarize and explain the uploaded notes in a way that is easy to understand. Use the context to answer directly.",
-    "Data Science": "You are a Data Science Professor. Use the provided notes to explain technical definitions, algorithms, and core concepts. If the user asks for 'main concepts' or 'methods', synthesize them from the text.",
-    "AI/ML": "You are an AI/ML Specialist. Focus on explaining the mathematical formulas, model architectures, and logic found in the notes. Provide step-by-step breakdowns of the algorithms mentioned.",
-    "Cyber Security": "You are a Security Expert. Explain the protocols, threats, and defensive strategies mentioned in the notes. Focus on the technical implementation details found in the context.",
-    "Data Structures": "You are a Computer Science Professor. Focus on explaining data structures (Linked Lists, Stacks, Queues, Trees) and algorithms (BFS, DFS) found in the notes. Provide C/Python logic explanations and analyze Time/Space complexity based on the text.",
-    "Viva Voice Mode": "You are a strict External Examiner. Your ONLY task is to generate questions based on the definitions, facts, and data points explicitly written in the provided notes. DO NOT invent your own examples, numbers, or lists. If the notes don't have enough detail for a question, ask about a different section of the notes."
+    "General Study": "You are a helpful Study Assistant. Your goal is to summarize and explain the uploaded notes in a way that is easy to understand.",
+    "Data Science": "You are a Data Science Professor. Use the provided notes to explain technical definitions, algorithms, and core concepts.",
+    "AI/ML": "You are an AI/ML Specialist. Focus on explaining the mathematical formulas, model architectures, and logic found in the notes.",
+    "Cyber Security": "You are a Security Expert. Explain the protocols, threats, and defensive strategies mentioned in the notes.",
+    "Data Structures": "You are a Computer Science Professor. Focus on explaining data structures (Linked Lists, Stacks, Queues, Trees) and algorithms (BFS, DFS).",
+    "Viva Voice Mode": "You are a strict External Examiner. Your ONLY task is to generate questions based strictly on the provided notes."
 }
 
 # --- 4. SIDEBAR CONTROLS ---
+# UI for subject selection and PDF upload
 with st.sidebar:
     st.title("🤓 Study Settings")
     selected_subject = st.selectbox("Choose Professor Mode:", list(SUBJECT_PROMPTS.keys()))
@@ -48,6 +52,7 @@ with st.sidebar:
         st.session_state.messages = []
 
 # --- 5. DYNAMIC PDF PROCESSING ---
+# Logic to read, split, and store PDF content into a searchable vector database
 def process_new_notes(file):
     with open("temp.pdf", "wb") as f:
         f.write(file.getbuffer())
@@ -70,6 +75,7 @@ if uploaded_file and "vector_db" not in st.session_state:
         st.success("Notes processed!")
 
 # --- 6. YOUR AGENTIC LOGIC (ROUTER + GRADER) ---
+# Router determines if the user needs the PDF, the Web, or just general chat
 router_prompt = ChatPromptTemplate.from_template(
     """Analyze the user's intent:
     - If the question involves technical terms, formulas, or concepts likely in a study PDF -> 'vector_db'
@@ -81,6 +87,7 @@ router_prompt = ChatPromptTemplate.from_template(
 )
 route_chain = router_prompt | llm | StrOutputParser()
 
+# Grader checks if retrieved PDF context is actually relevant to the question
 grader_prompt = ChatPromptTemplate.from_template(
     """You are a Relevance Filter.
     Context: {context}
@@ -95,48 +102,35 @@ grader_prompt = ChatPromptTemplate.from_template(
 grader_chain = grader_prompt | llm | StrOutputParser()
 
 # --- THE CORE ENGINE ---
+# Main logic that coordinates routing, retrieval, grading, and answering
 def master_engine_logic(user_input, history, subject):
     persona = SUBJECT_PROMPTS[selected_subject]
     
     # [COMPONENT: ROUTING]
+    # Forces 'vector_db' route if in Viva mode, otherwise uses the router
     if subject == "Viva Voice Mode":
         route = "vector_db"
     else:
         route = route_chain.invoke({"question": user_input}).lower()
         
-if subject == "Viva Voice Mode":
-    # Force the examiner to stay grounded
-    qa_prompt = ChatPromptTemplate.from_messages([
-        ("system", "{persona}\n\nSTRICT RULE: You must base your questions ONLY on this context. Do not invent examples or data.\n\nContext: {context_text}"),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{question}")
-    ])
-    # [COMPONENT: GROUNDED QA PROMPT]
-qa_prompt = ChatPromptTemplate.from_messages([
-    ("system", """{persona}
-    
-    STRICT GROUNDING RULES:
-    1. Answer ONLY using the provided Context. 
-    2. If the user asks for something specific (like code, formulas, or lists) that is NOT in the Context, you MUST say: "The notes discuss this topic, but they do not provide the specific implementation or data."
-    3. Never use outside knowledge to fill in gaps in the notes.
-    4. Keep the tone professional and academic.
-
-    Context: {context_text}"""),
-    MessagesPlaceholder(variable_name="history"),
-    ("human", "{question}")
-])
-    # [COMPONENT: VECTOR DB RETRIEVAL]
+    # [COMPONENT: VECTOR DB RETRIEVAL & PROCESSING]
     if "vector_db" in st.session_state and "vector_db" in route:
         docs = st.session_state.vector_db.similarity_search(user_input, k=7)
         context = "\n".join([d.page_content for d in docs])
         
-        # [COMPONENT: HALLUCINATION CHECK]
+        # [COMPONENT: RELEVANCE GRADING]
         grade = grader_chain.invoke({"context": context, "answer": user_input})
         
         if "YES" in grade.upper():
-            # [CASE: ANSWER FROM NOTES]
+            # [CASE: ANSWER FROM NOTES WITH STRICT GROUNDING]
+            # Use specific system prompt for Viva Mode or standard grounding
+            if subject == "Viva Voice Mode":
+                sys_msg = f"{persona}\n\nSTRICT RULE: You must base your questions ONLY on this context. Do not invent examples or data.\n\nContext: {{context_text}}"
+            else:
+                sys_msg = f"{persona}\n\nSTRICT GROUNDING RULES: 1. Answer ONLY using the provided Context. 2. If code/formulas/data requested are NOT in context, state it is missing. 3. No outside knowledge.\n\nContext: {{context_text}}"
+
             qa_prompt = ChatPromptTemplate.from_messages([
-                ("system", "{persona}\n\nSTRICT: Answer ONLY using this context: {context_text}"),
+                ("system", sys_msg),
                 MessagesPlaceholder(variable_name="history"),
                 ("human", "{question}")
             ])
@@ -144,13 +138,13 @@ qa_prompt = ChatPromptTemplate.from_messages([
             ans = (qa_prompt | llm | StrOutputParser()).invoke({
                 "question": user_input, 
                 "history": history,
-                "persona": persona,
                 "context_text": context 
             })
             return f"📚 **From your Notes:**\n\n{ans}", [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
         
         else:
             # [CASE: FALLBACK TO INTERNET]
+            # Triggers if the grader determines notes don't contain the answer
             st.info("🔍 This specific detail isn't in your notes. Fetching from the internet...")
             results = web_search.invoke({"query": user_input})
             
@@ -163,10 +157,11 @@ qa_prompt = ChatPromptTemplate.from_messages([
             web_ans = llm.invoke(fallback_prompt).content
             return f"🌐 **From Internet/LLM:**\n\n{web_ans}", ["🌍 Web Source"]
 
-    # [COMPONENT: GENERAL FALLBACK]
+    # [COMPONENT: GENERAL FALLBACK / LLM CHAT]
     return llm.invoke(f"System: {persona}\nUser: {user_input}").content, []
 
 # --- 7. THE UI CHAT ---
+# Renders chat history and handles new user inputs
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -182,9 +177,10 @@ if prompt := st.chat_input("Ask your Professor..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         with st.chat_message("assistant"):
+            # Format chat history for LangChain
             hist = [HumanMessage(content=m["content"]) if m["role"]=="user" else AIMessage(content=m["content"]) for m in st.session_state.messages[:-1]]
             
-            # Invoke the engine with history
+            # Execute master logic and display answer
             ans, sources = master_engine_logic(prompt, hist, selected_subject)
             st.markdown(ans)
             if sources:
