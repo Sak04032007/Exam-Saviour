@@ -31,11 +31,12 @@ llm, embeddings, web_search = load_core_tools()
 
 # --- 3. THE PROMPT LIBRARY (Your Personas) ---
 SUBJECT_PROMPTS = {
-    "General Study": "You are an assistant. Use only the provided notes to answer.",
-    "Data Science": "You are an assistant. Focus only on the technical definitions in the notes. If a detail is missing, say it's not provided.",
-    "AI/ML": "You are an assistant. Use only the formulas and algorithms from the notes.",
-    "Cyber Security": "You are an assistant. Use only the security protocols mentioned in the notes.",
-    "Viva Voice Mode": "You are an examiner. Generate questions based strictly on the text provided."
+    "General Study": "You are a helpful Study Assistant. Your goal is to summarize and explain the uploaded notes in a way that is easy to understand. Use the context to answer directly.",
+    "Data Science": "You are a Data Science Professor. Use the provided notes to explain technical definitions, algorithms, and core concepts. If the user asks for 'main concepts' or 'methods', synthesize them from the text.",
+    "AI/ML": "You are an AI/ML Specialist. Focus on explaining the mathematical formulas, model architectures, and logic found in the notes. Provide step-by-step breakdowns of the algorithms mentioned.",
+    "Cyber Security": "You are a Security Expert. Explain the protocols, threats, and defensive strategies mentioned in the notes. Focus on the technical implementation details found in the context.",
+    "Data Structures": "You are a Computer Science Professor. Focus on explaining data structures (Linked Lists, Stacks, Queues, Trees) and algorithms (BFS, DFS) found in the notes. Provide C/Python logic explanations and analyze Time/Space complexity based on the text.",
+    "Viva Voice Mode": "You are an Interviewer. Based strictly on the notes, generate possible viva questions and provide the correct answers based only on the provided text."
 }
 
 # --- 4. SIDEBAR CONTROLS ---
@@ -81,14 +82,15 @@ router_prompt = ChatPromptTemplate.from_template(
 route_chain = router_prompt | llm | StrOutputParser()
 
 grader_prompt = ChatPromptTemplate.from_template(
-    """You are a Fact-Checker. 
-    Compare the Answer to the Context. 
+    """You are a Relevance Filter.
     Context: {context}
-    Answer: {answer}
+    Question: {answer}
     
-    Does the Answer contain ANY information, facts, or topics (like 'Regression') that are NOT present in the Context? 
-    Reply 'YES' only if the answer is 100% supported by the context. 
-    Reply 'NO' if there is even a single hallucinated detail."""
+    Determine if the Context contains information related to the Question. 
+    - If the Context discusses the general topics or techniques mentioned in the question -> Reply 'YES'.
+    - Only reply 'NO' if the Context is completely irrelevant to the topic.
+    
+    Reply with ONLY 'YES' or 'NO'."""
 )
 grader_chain = grader_prompt | llm | StrOutputParser()
 
