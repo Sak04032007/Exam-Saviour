@@ -44,14 +44,22 @@ SUBJECT_PROMPTS = {
 
 # --- 4. SIDEBAR CONTROLS ---
 with st.sidebar:
-    # ⚡ BRANDING
-    st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>Celeritas</h1>", unsafe_allow_html=True)
+    st.markdown("""
+    <h1 style='text-align: center; 
+    background: -webkit-linear-gradient(#00c6ff, #0072ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 900; font-size: 60px;'>
+    Celeritas
+    </h1>
+    """, unsafe_allow_html=True)
     st.divider()
 
     #  EXAM COUNTDOWN
     from datetime import date
+    st.subheader("Exam Schedule")
+    user_exam_date = st.date_input("Select your exam start date:" , value = date(2026 , 5,15))
     today = date.today()
-    exam_date = date(2026, 5, 15)  # Update this to your actual exam date
     days_left = (exam_date - today).days
     st.metric(label="😨 Days Until Exams", value=max(0, days_left))
     st.divider()
