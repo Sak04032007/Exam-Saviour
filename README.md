@@ -25,3 +25,5 @@
 2. **Input** your specific syllabus topics in the tracker.
 3. **Set** your exam date for the live countdown.
 4. **Chat** with the Professor to master your subjects.
+
+[View detailed Technical Stack documentation](./TECH_STACK.md)
