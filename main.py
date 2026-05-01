@@ -113,49 +113,52 @@ grader_chain = grader_prompt | llm | StrOutputParser()
 
 def master_engine_logic(user_input, history, subject):
     persona = SUBJECT_PROMPTS[selected_subject]
+    
+    # 1. ROUTING: Determine the best tool
     route = route_chain.invoke({"question": user_input}).lower()
     
+    # 2. RETRIEVAL & GRADING (The CRAG Layer)
     if "vector_db" in route and "vector_db" in st.session_state:
-        # --- START OF CATCH-ALL LOGIC ---
-        # If the user is asking for a test/viva, we override the search query
-        search_query = user_input
-        trigger_words = ["question", "viva", "test", "quiz", "ask me"]
-        
-        if any(word in user_input.lower() for word in trigger_words):
-            search_query = "important technical concepts, definitions, and core topics"
-        # --- END OF CATCH-ALL LOGIC ---
-        
-        docs = st.session_state.vector_db.similarity_search(prompt, k=6)
+        # Deep search (k=7) to ensure we find technical details
+        docs = st.session_state.vector_db.similarity_search(user_input, k=7)
         context = "\n".join([d.page_content for d in docs])
-        
-        # Initial Generation
-        # Force the AI to be a "Grounded" assistant
+        sources = [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
+
+        # Generate a candidate answer
         qa_prompt = ChatPromptTemplate.from_messages([
-            ("system", f"{persona}\n\n"
-                       "CRITICAL INSTRUCTIONS:\n"
-                       "1. Use ONLY the provided Context block to answer.\n"
-                       "2. If the answer is not in the context, say: 'I cannot find that in your notes.'\n"
-                       "3. Prioritize technical details like formulas (e.g., Euclidean distance) and algorithms.\n\n"
-                       "Context: {context}"),
+            ("system", f"{persona}\n\nSTRICT: Answer ONLY using this context: {context}"),
             MessagesPlaceholder(variable_name="history"),
             ("human", "{question}")
         ])
-        initial_answer = (qa_prompt | llm | StrOutputParser()).invoke({"question": user_input, "history": history})
-        
-        # Your Hallucination Check
-        grade = grader_chain.invoke({"context": context, "answer": initial_answer})
-        if "NO" in grade.upper():
-            correction = llm.invoke(f"System: {persona}\nCorrection: {grade}\nRefine using context: {context}").content
-            return correction, [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
-        
-        return initial_answer, [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
+        candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
+            "question": user_input, 
+            "history": history
+        })
 
+        # 3. SELF-GRADING: Check for hallucinations
+        grade = grader_chain.invoke({"context": context, "answer": candidate_answer})
+        
+        if "NO" in grade.upper():
+            # If hallucination detected, trigger "Strict Retrieval Mode"
+            refinement_prompt = f"""
+            The previous answer contained information not in the PDF. 
+            STRICT TASK: Extract ONLY facts related to '{user_input}' from this text.
+            If the facts are not here, say 'This specific detail is not in your notes.'
+            TEXT: {context}
+            """
+            final_answer = llm.invoke(refinement_prompt).content
+            return final_answer, sources
+        
+        return candidate_answer, sources
+
+    # 4. FALLBACK: Web Search
     elif "web_search" in route:
         results = web_search.invoke({"query": user_input})
-        return llm.invoke(f"System: {persona}\nWeb Data: {results}\nAnswer: {user_input}").content, ["🌐 Web"]
+        web_ans = llm.invoke(f"System: {persona}\nWeb Data: {results}\nAnswer: {user_input}").content
+        return web_ans, ["🌐 Web Search"]
     
+    # 5. GENERAL: LLM (Greetings/Chat)
     return llm.invoke(f"System: {persona}\nUser: {user_input}").content, []
-
 # --- 7. THE UI CHAT ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
