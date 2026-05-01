@@ -106,7 +106,7 @@ def master_engine_logic(user_input, history, subject):
         
 if subject == "Viva Voice Mode":
     # Force the examiner to stay grounded
-qa_prompt = ChatPromptTemplate.from_messages([
+    qa_prompt = ChatPromptTemplate.from_messages([
         ("system", "{persona}\n\nSTRICT RULE: You must base your questions ONLY on this context. Do not invent examples or data.\n\nContext: {context_text}"),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{question}")
