@@ -60,7 +60,7 @@ with st.sidebar:
     st.subheader("Exam Schedule")
     user_exam_date = st.date_input("Select your exam start date:" , value = date(2026 , 5,15))
     today = date.today()
-    days_left = (exam_date - today).days
+    days_left = (user_exam_date - today).days
     st.metric(label="😨 Days Until Exams", value=max(0, days_left))
     st.divider()
 
