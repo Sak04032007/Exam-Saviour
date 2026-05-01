@@ -35,8 +35,8 @@ llm, embeddings, web_search = load_core_tools()
 # Specific personas to guide the LLM's behavior based on the chosen subject
 SUBJECT_PROMPTS = {
     "General Study": "You are a helpful Study Assistant. Your goal is to summarize and explain the uploaded notes in a way that is easy to understand.",
-    "Data Science": "You are a Data Science Professor. Use the provided notes to explain technical definitions, algorithms, and core concepts.",
-    "AI/ML": "You are an AI/ML Specialist. Focus on explaining the mathematical formulas, model architectures, and logic found in the notes.",
+    "Data Science": "You are a Data Science Professor.Use LaTeX for all mathematical formulas (e.g., write $$e=mc^2$$). Use the provided notes to explain technical definitions, algorithms, and core concepts.",
+    "AI/ML": "You are an AI/ML Specialist. Use LaTeX for all mathematical formulas (e.g., write $$e=mc^2$$).Focus on explaining the mathematical formulas, model architectures, and logic found in the notes.",
     "Cyber Security": "You are a Security Expert. Explain the protocols, threats, and defensive strategies mentioned in the notes.",
     "Data Structures": "You are a Computer Science Professor. Focus on explaining data structures (Linked Lists, Stacks, Queues, Trees) and algorithms (BFS, DFS).",
     "Viva Voice Mode": "You are a strict External Examiner. Your ONLY task is to generate questions based strictly on the provided notes."
@@ -45,6 +45,35 @@ SUBJECT_PROMPTS = {
 # --- 4. SIDEBAR CONTROLS ---
 # UI for subject selection and PDF upload
 with st.sidebar:
+    from datetime import date
+
+# Place inside 'with st.sidebar:'
+today = date.today()
+exam_date = date(2026, 5, 15)  # Update this to your actual exam date
+days_left = (exam_date - today).days
+
+st.metric(label="⏳ Days Until Exams", value=days_left)
+st.divider()
+    # Place inside 'with st.sidebar:'
+st.subheader("✅ Syllabus Tracker")
+topics = ["K-Means Clustering", "Linked Lists", "Neural Networks", "Complexity Analysis"]
+for topic in topics:
+    st.checkbox(topic, key=f"track_{topic}")
+st.divider() 
+# Place inside 'with st.sidebar:'
+if st.button("🗂️ Generate Flashcards"):
+    if "vector_db" in st.session_state:
+        with st.spinner("Creating flashcards..."):
+            # Get a broad sample of context
+            context_sample = st.session_state.vector_db.similarity_search("key concepts", k=5)
+            context_text = "\n".join([d.page_content for d in context_sample])
+            
+            flash_prompt = f"Based on these notes, create 5 quick flashcards (Term: Definition). \nContext: {context_text}"
+            cards = llm.invoke(flash_prompt).content
+            st.session_state.messages.append({"role": "assistant", "content": f"✨ **Your Instant Flashcards:**\n\n{cards}"})
+            st.rerun()
+    else:
+        st.error("Upload a PDF first!")
     st.title("🤓 Study Settings")
     selected_subject = st.selectbox("Choose Professor Mode:", list(SUBJECT_PROMPTS.keys()))
     uploaded_file = st.file_uploader("Upload your CSE Notes (PDF)", type="pdf")
