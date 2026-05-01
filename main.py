@@ -132,7 +132,7 @@ candidate_answer = (qa_prompt | llm | StrOutputParser()).invoke({
         # 3. SELF-GRADING: Check for hallucinations
 # Check if the context actually contains the answer
 grade = grader_chain.invoke({"context": context, "answer": user_input})
-    if "YES" in grade.upper():
+if "YES" in grade.upper():
             # Answer strictly from notes
             qa_prompt = ChatPromptTemplate.from_messages([
                 ("system", f"{persona}\n\nUSE ONLY THIS CONTEXT: {context}"),
@@ -140,9 +140,9 @@ grade = grader_chain.invoke({"context": context, "answer": user_input})
                 ("human", "{question}")
             ])
             ans = (qa_prompt | llm | StrOutputParser()).invoke({"question": user_input, "history": history})
-    return f"📚 **From your Notes:**\n\n{ans}", [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
+return f"📚 **From your Notes:**\n\n{ans}", [f"📄 Page {d.metadata.get('page', 0)+1}" for d in docs]
         
-    else:
+else:
             # 2. Fallback: Data not in notes, fetch from Internet/LLM
             st.info("🔍 This specific detail isn't in your notes. Fetching from the internet...")
             results = web_search.invoke({"query": user_input})
@@ -154,10 +154,10 @@ grade = grader_chain.invoke({"context": context, "answer": user_input})
             Question: {user_input}
             """
             web_ans = llm.invoke(fallback_prompt).content
-    return f"🌐 **From Internet/LLM:**\n\n{web_ans}", ["🌍 Web Source"]
+return f"🌐 **From Internet/LLM:**\n\n{web_ans}", ["🌍 Web Source"]
 
     # General Greeting Fallback
-    return llm.invoke(f"System: {persona}\nUser: {user_input}").content, []
+return llm.invoke(f"System: {persona}\nUser: {user_input}").content, []
 # --- 7. THE UI CHAT ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
