@@ -43,45 +43,55 @@ SUBJECT_PROMPTS = {
 }
 
 # --- 4. SIDEBAR CONTROLS ---
-# UI for subject selection and PDF upload
 with st.sidebar:
+    # ⚡ BRANDING
+    st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>Celeritas</h1>", unsafe_allow_html=True)
+    st.divider()
+
+    #  EXAM COUNTDOWN
     from datetime import date
+    today = date.today()
+    exam_date = date(2026, 5, 15)  # Update this to your actual exam date
+    days_left = (exam_date - today).days
+    st.metric(label="😨 Days Until Exams", value=max(0, days_left))
+    st.divider()
 
-# Place inside 'with st.sidebar:'
-today = date.today()
-exam_date = date(2026, 5, 15)  # Update this to your actual exam date
-days_left = (exam_date - today).days
+    #  CUSTOM SYLLABUS TRACKER
+    st.subheader("📚 Syllabus Tracker")
+    custom_topics_input = st.text_area("Enter topics (one per line):", 
+                                     value="K-Means Clustering\nLinked Lists\nNeural Networks\nComplexity Analysis")
+    
+    # Split input into a list and create checkboxes
+    syllabus_list = [t.strip() for t in custom_topics_input.split('\n') if t.strip()]
+    for topic in syllabus_list:
+        st.checkbox(topic, key=f"track_{topic}")
+    st.divider() 
 
-st.metric(label="⏳ Days Until Exams", value=days_left)
-st.divider()
-    # Place inside 'with st.sidebar:'
-st.subheader("✅ Syllabus Tracker")
-topics = ["K-Means Clustering", "Linked Lists", "Neural Networks", "Complexity Analysis"]
-for topic in topics:
-    st.checkbox(topic, key=f"track_{topic}")
-st.divider() 
-# Place inside 'with st.sidebar:'
-if st.button("🗂️ Generate Flashcards"):
-    if "vector_db" in st.session_state:
-        with st.spinner("Creating flashcards..."):
-            # Get a broad sample of context
-            context_sample = st.session_state.vector_db.similarity_search("key concepts", k=5)
-            context_text = "\n".join([d.page_content for d in context_sample])
-            
-            flash_prompt = f"Based on these notes, create 5 quick flashcards (Term: Definition). \nContext: {context_text}"
-            cards = llm.invoke(flash_prompt).content
-            st.session_state.messages.append({"role": "assistant", "content": f"✨ **Your Instant Flashcards:**\n\n{cards}"})
-            st.rerun()
-    else:
-        st.error("Upload a PDF first!")
+    #  FLASHCARD GENERATOR
+    if st.button("🗂️ Generate Flashcards"):
+        if "vector_db" in st.session_state:
+            with st.spinner("Creating flashcards..."):
+                context_sample = st.session_state.vector_db.similarity_search("key concepts", k=5)
+                context_text = "\n".join([d.page_content for d in context_sample])
+                flash_prompt = f"Based on these notes, create 5 quick flashcards (Term: Definition). \nContext: {context_text}"
+                cards = llm.invoke(flash_prompt).content
+                st.session_state.messages.append({"role": "assistant", "content": f"✨ **Your Instant Flashcards:**\n\n{cards}"})
+                st.rerun()
+        else:
+            st.error("Upload a PDF first!")
+
+    # ⚙️ SETTINGS
     st.title("🤓 Study Settings")
     selected_subject = st.selectbox("Choose Professor Mode:", list(SUBJECT_PROMPTS.keys()))
     uploaded_file = st.file_uploader("Upload your CSE Notes (PDF)", type="pdf")
+    
     if st.button("Clear Chat History"):
         st.session_state.messages = []
+        st.rerun()
 
 # --- 5. DYNAMIC PDF PROCESSING ---
-# Logic to read, split, and store PDF content into a searchable vector database
+# This block must remain OUTSIDE the sidebar 'with' block 
+# but AFTER uploaded_file is defined to avoid NameErrors.
 def process_new_notes(file):
     with open("temp.pdf", "wb") as f:
         f.write(file.getbuffer())
